@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>インタラクティブ画像ビューアー</title>
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body{
+        overflow: hidden;
+    }
+    .draggable {
+      cursor: grab;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-sky-100 to-cyan-100 flex items-center justify-center min-h-screen font-sans">
+  <div class="bg-white/60 backdrop-blur p-6 rounded-xl shadow-xl max-w-2xl w-full space-y-4 text-center">
+    <h1 class="text-xl font-semibold text-gray-800">画像ビューアー</h1>
+    <input type="file" accept="image/*" class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:bg-cyan-400 file:text-white hover:file:bg-cyan-500" onchange="loadImage(event)">
+    <div id="image-container" class="relative w-full h-96 overflow-hidden border border-gray-300 rounded-lg bg-gray-100 flex items-center justify-center">
+      <span class="text-gray-400"><i class="fas fa-image fa-3x"></i></span>
+    </div>
+    <div class="flex justify-center gap-6 pt-2 text-cyan-600 text-xl">
+      <button class="hover:text-cyan-800" onclick="zoomOut()" title="縮小"><i class="fas fa-search-minus"></i></button>
+      <button class="hover:text-cyan-800" onclick="zoomIn()" title="拡大"><i class="fas fa-search-plus"></i></button>
+      <button class="hover:text-cyan-800" onclick="rotate()" title="回転"><i class="fas fa-sync"></i></button>
+      <button class="hover:text-cyan-800" onclick="resetImage()" title="リセット"><i class="fas fa-redo-alt"></i></button>
+    </div>
+  </div>
+
+  <script>
+    let zoom = 1, rotation = 0, pos = { x: 0, y: 0 }, dragging = false;
+    const container = document.getElementById("image-container");
+
+    function loadImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        container.innerHTML = `<img src="${reader.result}" class="draggable" style="transform: scale(${zoom}) rotate(${rotation}deg); max-width: none; max-height: none;" />`;
+        const img = container.querySelector("img");
+        img.addEventListener("mousedown", startDrag);
+        window.addEventListener("mouseup", stopDrag);
+        window.addEventListener("mousemove", drag);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function zoomIn() {
+      zoom += 0.1;
+      applyTransform();
+    }
+
+    function zoomOut() {
+      zoom = Math.max(0.1, zoom - 0.1);
+      applyTransform();
+    }
+
+    function rotate() {
+      rotation = (rotation + 90) % 360;
+      applyTransform();
+    }
+
+    function resetImage() {
+      zoom = 1;
+      rotation = 0;
+      pos = { x: 0, y: 0 };
+      container.querySelector("img").style.left = "0px";
+      container.querySelector("img").style.top = "0px";
+      applyTransform();
+    }
+
+    function applyTransform() {
+      const img = container.querySelector("img");
+      if (img) {
+        img.style.transform = `scale(${zoom}) rotate(${rotation}deg)`;
+      }
+    }
+
+    function startDrag(e) {
+      dragging = true;
+      pos.startX = e.clientX;
+      pos.startY = e.clientY;
+      const img = container.querySelector("img");
+      pos.imgX = parseInt(img.style.left || 0);
+      pos.imgY = parseInt(img.style.top || 0);
+    }
+
+    function stopDrag() {
+      dragging = false;
+    }
+
+    function drag(e) {
+      if (!dragging) return;
+      const img = container.querySelector("img");
+      img.style.position = "absolute";
+      img.style.left = (pos.imgX + e.clientX - pos.startX) + "px";
+      img.style.top = (pos.imgY + e.clientY - pos.startY) + "px";
+    }
+  </script>
+</body>
+</html>

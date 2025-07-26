@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeCanvas テキストエディタ</title>
+    <style type="text/css">
+        @import url('https://fonts.googleapis.com/css?family=Segoe+UI:400,700');
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #222;
+            color: #eee;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background: #333;
+            padding: 1em;
+            text-align: center;
+            font-size: 1.2em;
+            letter-spacing: 2px;
+        }
+        #editor {
+            flex: 1;
+            height: 60vh;
+            width: 100%;
+            font-size: 1.1em;
+            border: none;
+        }
+        .toolbar {
+            background: #292929;
+            padding: 0.5em;
+            text-align: right;
+        }
+        button {
+            background: #444;
+            color: #eee;
+            border: none;
+            padding: 0.5em 1em;
+            margin-left: 0.5em;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #666;
+        }
+    </style>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #222;
+            color: #eee;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background: #333;
+            padding: 1em;
+            text-align: center;
+            font-size: 1.2em;
+            letter-spacing: 2px;
+        }
+        #editor {
+            flex: 1;
+            height: 100%;
+        }
+        .CodeMirror {
+            height: 60vh;
+            font-size: 1.1em;
+            background: #181818;
+            color: #eee;
+            border: none;
+        }
+        .toolbar {
+            background: #292929;
+            padding: 0.5em;
+            text-align: right;
+        }
+        button {
+            background: #444;
+            color: #eee;
+            border: none;
+            padding: 0.5em 1em;
+            margin-left: 0.5em;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <header>CodeCanvas テキストエディタ</header>
+    <div class="toolbar">
+        <select id="language-select" onchange="changeLanguage()" style="margin-right:1em;">
+            <option value="markdown">Markdown</option>
+            <option value="javascript">JavaScript</option>
+            <option value="html">HTML</option>
+            <option value="css">CSS</option>
+            <option value="python">Python</option>
+            <option value="json">JSON</option>
+            <option value="plain_text">Text</option>
+        </select>
+        <input type="file" id="file-input" style="display:none" onchange="openFile(event)">
+        <button onclick="saveText()">保存（ローカル）</button>
+        <button onclick="triggerOpenFile()">開く（ローカル）</button>
+        <button onclick="addTab()">新規タブ</button>
+        <button onclick="closeTab()">タブを閉じる</button>
+        <button onclick="clearText()">クリア</button>
+    </div>
+    <div id="tabs" style="background:#222;display:flex;gap:2px;padding:0.5em 0 0.5em 0.5em;"></div>
+    <div id="editor" style="height:60vh;width:100%;border:none;"></div>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+    <script>
+        let monacoEditor;
+        let tabs = [];
+        let currentTab = 0;
+        const languageMap = {
+            markdown: 'markdown',
+            javascript: 'javascript',
+            html: 'html',
+            css: 'css',
+            python: 'python',
+            json: 'json',
+            plain_text: 'plaintext'
+        };
+        window.onload = function() {
+            require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+            require(['vs/editor/editor.main'], function() {
+                monacoEditor = monaco.editor.create(document.getElementById('editor'), {
+                    value: '',
+                    language: 'markdown',
+                    theme: 'vs-dark',
+                    fontSize: 16,
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                });
+                // Dracula風の色調整
+                monaco.editor.defineTheme('dracula', {
+                    base: 'vs-dark',
+                    inherit: true,
+                    rules: [
+                        { token: '', foreground: 'f8f8f2', background: '282a36' },
+                        { token: 'comment', foreground: '6272a4' },
+                        { token: 'keyword', foreground: 'ff79c6' },
+                        { token: 'number', foreground: 'bd93f9' },
+                        { token: 'string', foreground: 'f1fa8c' },
+                        { token: 'variable', foreground: '50fa7b' },
+                        { token: 'type', foreground: '8be9fd' },
+                    ],
+                    colors: {
+                        'editor.background': '#282a36',
+                        'editor.foreground': '#f8f8f2',
+                        'editor.lineHighlightBackground': '#44475a',
+                        'editorCursor.foreground': '#f8f8f0',
+                        'editor.selectionBackground': '#44475a',
+                        'editor.inactiveSelectionBackground': '#44475a99',
+                    }
+                });
+                monaco.editor.setTheme('dracula');
+                addTab('新規ファイル');
+            });
+        };
+
+        function changeLanguage() {
+            const lang = document.getElementById('language-select').value;
+            monaco.editor.setModelLanguage(monacoEditor.getModel(), languageMap[lang] || 'plaintext');
+            tabs[currentTab].language = lang;
+        }
+
+        function saveText() {
+            const text = monacoEditor.getValue();
+            const blob = new Blob([text], {type: 'text/plain'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = tabs[currentTab]?.filename || 'untitled.txt';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        function triggerOpenFile() {
+            document.getElementById('file-input').click();
+        }
+
+        function openFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                monacoEditor.setValue(e.target.result);
+                setTabName(file.name);
+                tabs[currentTab].filename = file.name;
+            };
+            reader.readAsText(file);
+        }
+
+        function clearText() {
+            monacoEditor.setValue('');
+        }
+
+        // タブ機能
+        function addTab(name = '新規ファイル') {
+            tabs.push({
+                name: name,
+                content: '',
+                language: document.getElementById('language-select').value,
+                filename: name + '.txt',
+            });
+            currentTab = tabs.length - 1;
+            renderTabs();
+            monacoEditor.setValue('');
+            changeLanguage();
+        }
+
+        function closeTab() {
+            if (tabs.length <= 1) return;
+            tabs.splice(currentTab, 1);
+            currentTab = Math.max(0, currentTab - 1);
+            renderTabs();
+            monacoEditor.setValue(tabs[currentTab].content);
+            document.getElementById('language-select').value = tabs[currentTab].language;
+            changeLanguage();
+        }
+
+        function switchTab(idx) {
+            // 保存して切り替え
+            tabs[currentTab].content = monacoEditor.getValue();
+            currentTab = idx;
+            monacoEditor.setValue(tabs[currentTab].content);
+            document.getElementById('language-select').value = tabs[currentTab].language;
+            changeLanguage();
+            renderTabs();
+        }
+
+        function setTabName(name) {
+            tabs[currentTab].name = name;
+            renderTabs();
+        }
+
+        function renderTabs() {
+            const tabsDiv = document.getElementById('tabs');
+            tabsDiv.innerHTML = '';
+            tabs.forEach((tab, idx) => {
+                const tabBtn = document.createElement('button');
+                tabBtn.textContent = tab.name;
+                tabBtn.style.background = idx === currentTab ? '#44475a' : '#444';
+                tabBtn.style.color = '#f8f8f2';
+                tabBtn.style.border = 'none';
+                tabBtn.style.padding = '0.5em 1em';
+                tabBtn.style.marginRight = '2px';
+                tabBtn.style.borderRadius = '4px 4px 0 0';
+                tabBtn.onclick = () => switchTab(idx);
+                tabsDiv.appendChild(tabBtn);
+            });
+        }
+    </script>
+    </script>
+</body>
+</html>

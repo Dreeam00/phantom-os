@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>表計算ソフト - MakeGrid</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-xl p-10 min-w-[700px] max-w-[90vw]">
+        <div class="flex items-center justify-center gap-4 mb-6 bg-green-400 p-5">
+            <img src="AppIcon/makeGrid.png" alt="Grid Icon" class="w-10 h-10 rounded-xl shadow">
+            <div>
+                <h1 class="m-0 text-3xl font-bold tracking-wide text-gray-800">MakeGrid</h1>
+                <div class="text-base text-gray-500 mt-1">かんたん表計算ソフト</div>
+            </div>
+        </div>
+        <hr class="my-6 border-t-2 border-gray-200">
+        <div class="flex gap-3 mb-6">
+            <button onclick="addRow()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-semibold shadow hover:bg-gray-300 transition">行追加</button>
+            <button onclick="addCol()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-semibold shadow hover:bg-gray-300 transition">列追加</button>
+            <button onclick="downloadCSV()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-semibold shadow hover:bg-gray-300 transition">CSV保存</button>
+            <button onclick="uploadCSV()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-semibold shadow hover:bg-gray-300 transition">CSV読込</button>
+            <input type="file" id="csvfile" accept=".csv" onchange="loadCSV(event)" class="hidden">
+        </div>
+        <div id="spreadsheet"></div>
+    </div>
+    <script>
+        // 初期サイズ
+        let rows = 15;
+        let cols = 8;
+        let data = Array.from({length: rows}, () => Array(cols).fill(''));
+
+        function renderSheet() {
+            let html = '<table class="border-collapse w-full min-w-[600px] rounded-xl overflow-hidden">';
+            html += '<thead><tr><th class="bg-gray-200 text-gray-700 font-semibold"> </th>';
+            for(let c=0; c<cols; c++) {
+                html += `<th class="bg-gray-200 text-gray-700 font-semibold">${String.fromCharCode(65+c)}</th>`;
+            }
+            html += '</tr></thead><tbody>';
+            for(let r=0; r<rows; r++) {
+                html += `<tr><th class="bg-gray-200 text-gray-700 font-semibold">${r+1}</th>`;
+                for(let c=0; c<cols; c++) {
+                    let display = data[r][c];
+                    if(typeof display === 'string' && display.startsWith('=')) {
+                        try {
+                            display = evalFormula(display.slice(1), r, c);
+                        } catch(e) {
+                            display = 'ERR';
+                        }
+                    }
+                    html += `<td class="border border-gray-200 bg-gray-50"><input value="${data[r][c]}" oninput="updateCell(${r},${c},this.value)" class="w-full bg-transparent border-none text-gray-800 text-base p-1 rounded focus:bg-gray-200 outline-none transition"/><div class="text-sm text-blue-500">${display !== data[r][c] ? display : ''}</div></td>`;
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+            document.getElementById('spreadsheet').innerHTML = html;
+        }
+        // 関数式の評価
+        function evalFormula(formula, row, col) {
+            // セル参照（A1,B2...）を値に置換
+            formula = formula.replace(/([A-Z]+)(\d+)/g, function(_, colStr, rowStr) {
+                let c = colStr.charCodeAt(0)-65;
+                let r = parseInt(rowStr)-1;
+                if(r>=0 && r<rows && c>=0 && c<cols) {
+                    let v = data[r][c];
+                    if(typeof v === 'string' && v.startsWith('=')) {
+                        try { return evalFormula(v.slice(1), r, c); } catch(e) { return 0; }
+                    }
+                    return isNaN(Number(v)) ? 0 : Number(v);
+                }
+                return 0;
+            });
+            // 関数（SUM, AVERAGE, MIN, MAX）: 範囲・カンマ区切り両対応
+            formula = formula.replace(/(SUM|AVERAGE|MIN|MAX)\(([^)]*)\)/gi, function(_, func, args) {
+                let vals = [];
+                args.split(',').forEach(arg => {
+                    arg = arg.trim();
+                    if(arg.includes(':')) {
+                        // 範囲
+                        let [start, end] = arg.split(':');
+                        let c1 = start.charCodeAt(0)-65, r1 = parseInt(start.slice(1))-1;
+                        let c2 = end.charCodeAt(0)-65, r2 = parseInt(end.slice(1))-1;
+                        if(c1 === c2) {
+                            for(let r=r1; r<=r2; r++) vals.push(Number(data[r][c1])||0);
+                        } else if(r1 === r2) {
+                            for(let c=c1; c<=c2; c++) vals.push(Number(data[r1][c])||0);
+                        }
+                    } else {
+                        // 単セル or 数値 or 式
+                        let v = arg;
+                        // セル参照
+                        if(/^[A-Z]+\d+$/.test(v)) {
+                            let c = v.charCodeAt(0)-65;
+                            let r = parseInt(v.slice(1))-1;
+                            if(r>=0 && r<rows && c>=0 && c<cols) {
+                                v = data[r][c];
+                                if(typeof v === 'string' && v.startsWith('=')) {
+                                    try { v = evalFormula(v.slice(1), r, c); } catch(e) { v = 0; }
+                                }
+                            }
+                        }
+                        // 式評価
+                        try { v = Number(Function('return '+v)()); } catch(e) { v = Number(v)||0; }
+                        vals.push(v);
+                    }
+                });
+                switch(func.toUpperCase()) {
+                    case 'SUM': return vals.reduce((a,b)=>a+b,0);
+                    case 'AVERAGE': return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+                    case 'MIN': return Math.min(...vals);
+                    case 'MAX': return Math.max(...vals);
+                }
+                return 0;
+            });
+            // 四則演算
+            return Function('return '+formula)();
+        }
+
+        function updateCell(r, c, val) {
+            data[r][c] = val;
+        }
+
+        function addRow() {
+            data.push(Array(cols).fill(''));
+            rows++;
+            renderSheet();
+        }
+        function addCol() {
+            for(let r=0; r<rows; r++) data[r].push('');
+            cols++;
+            renderSheet();
+        }
+
+        function downloadCSV() {
+            let csv = '';
+            csv += ',' + Array.from({length:cols}, (_,i)=>String.fromCharCode(65+i)).join(',') + '\n';
+            for(let r=0; r<rows; r++) {
+                csv += (r+1) + ',' + data[r].map(cell => '"'+cell.replace(/"/g,'""')+'"').join(',') + '\n';
+            }
+            const blob = new Blob([csv], {type:'text/csv'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'makegrid.csv';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        function uploadCSV() {
+            document.getElementById('csvfile').click();
+        }
+
+        function loadCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const lines = e.target.result.split(/\r?\n/);
+                if(lines.length < 2) return;
+                cols = lines[0].split(',').length-1;
+                rows = lines.length-1;
+                data = [];
+                for(let r=1; r<lines.length; r++) {
+                    const cells = lines[r].split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).slice(1).map(cell => cell.replace(/^"|"$/g, '').replace(/""/g, '"'));
+                    if(cells.length) data.push(cells);
+                }
+                renderSheet();
+            };
+            reader.readAsText(file);
+        }
+
+        renderSheet();
+    </script>
+</body>
+</html>

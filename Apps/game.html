@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Game Center</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-white">
+  <div class="text-2xl font-bold text-gray-800 mt-8 mb-4 tracking-wide text-left">Game Center</div>
+  <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-6 flex flex-col items-center gap-5">
+    <div class="w-full flex flex-col gap-3 mb-3">
+      <button class="px-4 py-2 rounded-lg bg-blue-50 text-gray-800 border border-blue-200 hover:bg-blue-100 hover:border-blue-400 transition flex items-center gap-2" onclick="showGame('tic')"><i class="fa-solid fa-xmark" style="color:#e74c3c;"></i> ○×ゲーム</button>
+      <button class="px-4 py-2 rounded-lg bg-blue-50 text-gray-800 border border-blue-200 hover:bg-blue-100 hover:border-blue-400 transition flex items-center gap-2" onclick="showGame('number')"><i class="fa-solid fa-hashtag" style="color:#4a90e2;"></i> 数字当てゲーム</button>
+      <button class="px-4 py-2 rounded-lg bg-blue-50 text-gray-800 border border-blue-200 hover:bg-blue-100 hover:border-blue-400 transition flex items-center gap-2" onclick="showGame('memory')"><i class="fa-solid fa-brain" style="color:#f5b041;"></i> メモリーカード</button>
+      <button class="px-4 py-2 rounded-lg bg-blue-50 text-gray-800 border border-blue-200 hover:bg-blue-100 hover:border-blue-400 transition flex items-center gap-2" onclick="showGame('rps')"><i class="fa-solid fa-hand-back-fist" style="color:#27ae60;"></i> じゃんけん</button>
+      <button class="px-4 py-2 rounded-lg bg-blue-50 text-gray-800 border border-blue-200 hover:bg-blue-100 hover:border-blue-400 transition flex items-center gap-2" onclick="showGame('minesweeper')"><i class="fa-solid fa-bomb" style="color:#e67e22;"></i> マインスイーパー</button>
+    </div>
+    <div class="w-full min-h-[220px] bg-blue-50 rounded-lg shadow p-4 mt-2 flex flex-col items-center justify-center" id="game-area">
+      <div style="color:#888;">ゲームを選択してください</div>
+    </div>
+  </div>
+  <script>
+function showGame(type) {
+      const area = document.getElementById('game-area');
+      if (type === 'tic') {
+        area.innerHTML = `<div style='font-size:1.1em;font-weight:500;margin-bottom:8px;'><i class='fa-solid fa-xmark' style='color:#e74c3c;'></i> ○×ゲーム</div><div id='tic-board' style='display:grid;grid-template-columns:repeat(3,50px);gap:6px;margin-bottom:10px;'></div><button onclick='resetTic()' style='padding:6px 14px;border-radius:6px;border:none;background:#eaf6ff;color:#222;cursor:pointer;'>リセット</button><div id='tic-status' style='margin-top:8px;color:#4a90e2;'></div>`;
+        window.ticState = Array(9).fill('');
+        window.ticTurn = '○';
+        renderTic();
+      } else if (type === 'number') {
+        area.innerHTML = `<div style='font-size:1.1em;font-weight:500;margin-bottom:8px;'><i class='fa-solid fa-hashtag' style='color:#4a90e2;'></i> 数字当てゲーム</div><div>1～100の数字を当ててください</div><input id='num-input' type='number' min='1' max='100' style='margin:8px 0;padding:6px 12px;border-radius:6px;border:1.5px solid #b3c6e7;font-size:1em;'><button onclick='guessNum()' style='padding:6px 14px;border-radius:6px;border:none;background:#eaf6ff;color:#222;cursor:pointer;margin-left:8px;'>判定</button><div id='num-status' style='margin-top:8px;color:#4a90e2;'></div>`;
+        window.numAns = Math.floor(Math.random()*100)+1;
+      } else if (type === 'memory') {
+        area.innerHTML = `<div style='font-size:1.1em;font-weight:500;margin-bottom:8px;'><i class='fa-solid fa-brain' style='color:#f5b041;'></i> メモリーカード</div><div id='mem-board' style='display:grid;grid-template-columns:repeat(4,40px);gap:6px;margin-bottom:10px;'></div><button onclick='resetMem()' style='padding:6px 14px;border-radius:6px;border:none;background:#eaf6ff;color:#222;cursor:pointer;'>リセット</button><div id='mem-status' style='margin-top:8px;color:#4a90e2;'></div>`;
+        setupMem();
+      } else if (type === 'rps') {
+        area.innerHTML = `<div style='font-size:1.1em;font-weight:500;margin-bottom:8px;'><i class='fa-solid fa-hand-back-fist' style='color:#27ae60;'></i> じゃんけん</div><div style='margin-bottom:10px;'><button onclick='playRps(0)' style='padding:6px 14px;border-radius:6px;border:none;background:#eaf6ff;color:#222;cursor:pointer;margin-right:8px;'>グー</button><button onclick='playRps(1)' style='padding:6px 14px;border-radius:6px;border:none;background:#eaf6ff;color:#222;cursor:pointer;margin-right:8px;'>チョキ</button><button onclick='playRps(2)' style='padding:6px 14px;border-radius:6px;border:none;background:#eaf6ff;color:#222;cursor:pointer;'>パー</button></div><div id='rps-status' style='margin-top:8px;color:#4a90e2;'></div>`;
+      } else if (type === 'solitaire') {
+      } else if (type === 'minesweeper') {
+        area.innerHTML = `<div style='font-size:1.1em;font-weight:500;margin-bottom:8px;'><i class='fa-solid fa-bomb' style='color:#e67e22;'></i> マインスイーパー</div><div id='mine-board' style='display:grid;grid-template-columns:repeat(8,28px);gap:4px;margin-bottom:10px;'></div><button onclick='resetMine()' style='padding:6px 14px;border-radius:6px;border:none;background:#eaf6ff;color:#222;cursor:pointer;'>リセット</button><div id='mine-status' style='margin-top:8px;color:#e74c3c;'></div>`;
+        setupMine();
+      } else if (type === 'jewel') {
+      }
+    }
+window.showGame = showGame;
+    // ...existing code...
+    // マインスイーパー（簡易）
+    function setupMine() {
+      let arr = Array(64).fill(0);
+      let mines = [];
+      while(mines.length<10){let r=Math.floor(Math.random()*64);if(!mines.includes(r)){mines.push(r);}}
+      // 数字計算
+      for(let i=0;i<64;i++){
+        if(mines.includes(i)) arr[i] = 'M';
+        else {
+          let cnt = 0;
+          for(let dr=-1;dr<=1;dr++){
+            for(let dc=-1;dc<=1;dc++){
+              if(dr===0&&dc===0)continue;
+              let nr = Math.floor(i/8)+dr, nc = i%8+dc;
+              if(nr>=0&&nr<8&&nc>=0&&nc<8&&mines.includes(nr*8+nc)) cnt++;
+            }
+          }
+          arr[i] = cnt;
+        }
+      }
+      window.mineArr = arr;
+      window.mineOpen = Array(64).fill(false);
+      window.mineFlag = Array(64).fill(false);
+      window.mineGameOver = false;
+      renderMine();
+    }
+    function renderMine() {
+      const board = document.getElementById('mine-board');
+      board.innerHTML = '';
+      window.mineArr.forEach((v,i)=>{
+        let show = window.mineOpen[i];
+        let flag = window.mineFlag[i];
+        let val = '';
+        if(flag) val = '<i class="fa-solid fa-flag" style="color:#e67e22;"></i>';
+        else if(show && v==='M') val = '<i class="fa-solid fa-bomb" style="color:#e74c3c;"></i>';
+        else if(show && v>0) val = `<span style='color:#2980b9;font-weight:600;'>${v}</span>`;
+        else if(show && v===0) val = '';
+        board.innerHTML += `<button onclick='openMine(${i})' oncontextmenu='flagMine(event,${i})' style='width:28px;height:28px;font-size:1em;border-radius:4px;border:1px solid #b3c6e7;background:${show?(v==='M'?"#e74c3c":"#dbeafe"):"#fafdff"};color:#222;cursor:pointer;user-select:none;'>${val}</button>`;
+      });
+    }
+    function openMine(i) {
+      if (window.mineOpen[i] || window.mineFlag[i] || window.mineGameOver) return;
+      if(window.mineArr[i]==='M'){
+        window.mineOpen[i]=true;
+        window.mineGameOver=true;
+        renderMine();
+        document.getElementById('mine-status').textContent = 'ゲームオーバー！';
+        return;
+      }
+      // 連続開け（DFS）
+      function dfs(idx){
+        if(window.mineOpen[idx]||window.mineFlag[idx])return;
+        window.mineOpen[idx]=true;
+        if(window.mineArr[idx]===0){
+          let r=Math.floor(idx/8),c=idx%8;
+          for(let dr=-1;dr<=1;dr++){
+            for(let dc=-1;dc<=1;dc++){
+              if(dr===0&&dc===0)continue;
+              let nr=r+dr,nc=c+dc;
+              if(nr>=0&&nr<8&&nc>=0&&nc<8) dfs(nr*8+nc);
+            }
+          }
+        }
+      }
+      dfs(i);
+      renderMine();
+      // クリア判定
+      if(window.mineOpen.filter((v,i)=>!window.mineFlag[i]&&window.mineArr[i]!=='M'&&v).length===54){
+        document.getElementById('mine-status').textContent = 'クリア！';
+        window.mineGameOver=true;
+      }
+    }
+    function resetMine() {
+      setupMine();
+      document.getElementById('mine-status').textContent = '';
+    }
+    // 旗設置
+    function flagMine(e,i){
+      e.preventDefault();
+      if(window.mineOpen[i]||window.mineGameOver)return;
+      window.mineFlag[i]=!window.mineFlag[i];
+      renderMine();
+    }
+    // ...existing code...
+    function resetMem() {
+      setupMem();
+    }
+    // じゃんけん
+    function playRps(user) {
+      const cpu = Math.floor(Math.random()*3);
+      const hands = ['グー','チョキ','パー'];
+      let result = '';
+      if (user===cpu) result = 'あいこ';
+      else if ((user+1)%3===cpu) result = 'あなたの勝ち！';
+      else result = 'あなたの負け...';
+      document.getElementById('rps-status').textContent = `あなた:${hands[user]} CPU:${hands[cpu]} → ${result}`;
+    }
+  </script>
+</body>
+</html>

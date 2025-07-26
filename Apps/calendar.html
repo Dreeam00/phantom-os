@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Calendar & Todo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-white">
+  <div class="text-2xl font-bold text-gray-800 mt-8 mb-4 tracking-wide text-left">Calendar & Todo</div>
+  <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-6 flex flex-col gap-5 items-center">
+    <table class="w-full border-collapse mb-4">
+      <thead>
+        <tr>
+          <th class="bg-blue-50 text-blue-700 p-2 rounded">日</th><th class="bg-blue-50 text-blue-700 p-2 rounded">月</th><th class="bg-blue-50 text-blue-700 p-2 rounded">火</th><th class="bg-blue-50 text-blue-700 p-2 rounded">水</th><th class="bg-blue-50 text-blue-700 p-2 rounded">木</th><th class="bg-blue-50 text-blue-700 p-2 rounded">金</th><th class="bg-blue-50 text-blue-700 p-2 rounded">土</th>
+        </tr>
+      </thead>
+      <tbody id="calendar-body">
+        <!-- JSで生成 -->
+      </tbody>
+    </table>
+    <div class="w-full flex flex-col gap-2" id="todo-list">
+      <!-- JSで生成 -->
+    </div>
+    <div class="flex gap-3 mt-2 w-full">
+      <input type="text" id="todo-input" placeholder="Todoを追加..." class="flex-1 p-2 rounded-lg border border-blue-200 text-base bg-blue-50 outline-none" />
+      <button onclick="addTodo()" class="px-5 py-2 rounded-lg bg-blue-50 text-gray-800 border border-blue-200 font-semibold hover:bg-blue-100 hover:border-blue-400 transition">追加</button>
+    </div>
+  </div>
+  <script>
+    // カレンダー生成 & 予定管理
+    let events = JSON.parse(localStorage.getItem('phantom_events') || '{}');
+    function generateCalendar() {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const firstDay = new Date(year, month, 1).getDay();
+      const lastDate = new Date(year, month + 1, 0).getDate();
+      let html = '<tr>';
+      for (let i = 0; i < firstDay; i++) html += '<td></td>';
+      for (let d = 1; d <= lastDate; d++) {
+        if ((firstDay + d - 1) % 7 === 0 && d !== 1) html += '</tr><tr>';
+        const key = year + '-' + (month+1) + '-' + d;
+        const hasEvent = events[key] && events[key].length > 0;
+        html += `<td${d === today.getDate() ? ' style="background:#dbeafe;color:#4a90e2;font-weight:600;cursor:pointer;"' : ' style="cursor:pointer;"'} onclick="showEventModal('${key}')">${d}${hasEvent ? '<span style=\"color:#e74c3c;font-size:0.9em;\">●</span>' : ''}</td>`;
+      }
+      html += '</tr>';
+      document.getElementById('calendar-body').innerHTML = html;
+    }
+    generateCalendar();
+
+    // 予定追加・表示・削除
+    function showEventModal(key) {
+      let eventList = events[key] || [];
+      let modal = document.createElement('div');
+      modal.style.position = 'fixed';
+      modal.style.left = '0';
+      modal.style.top = '0';
+      modal.style.width = '100vw';
+      modal.style.height = '100vh';
+      modal.style.background = 'rgba(30,40,60,0.18)';
+      modal.style.zIndex = '9999';
+      modal.style.display = 'flex';
+      modal.style.alignItems = 'center';
+      modal.style.justifyContent = 'center';
+      modal.innerHTML = `
+        <div style='background:#fff;padding:24px 18px 18px 18px;border-radius:12px;min-width:320px;max-width:90vw;'>
+          <div style='font-size:1.1em;font-weight:600;color:#222;margin-bottom:12px;'>${key} の予定</div>
+          <div id='event-list' style='margin-bottom:12px;'>
+            ${eventList.length === 0 ? '<div style="color:#888;">予定なし</div>' : eventList.map((ev,i)=>`<div style='margin-bottom:6px;display:flex;align-items:center;gap:8px;'><span>${ev}</span><button onclick='window.deleteEvent("${key}",${i})' style='padding:2px 8px;font-size:0.9em;border-radius:5px;border:none;background:#eaf6ff;color:#222;cursor:pointer;'>削除</button></div>`).join('')}
+          </div>
+          <div style='display:flex;gap:8px;'>
+            <input id='event-input' type='text' style='flex:1;padding:7px 12px;border-radius:6px;border:1.5px solid #b3c6e7;font-size:1em;background:#fafdff;outline:none;' placeholder='予定を追加...'>
+            <button onclick='window.addEvent("${key}")' style='padding:7px 18px;border-radius:6px;border:1.5px solid #b3c6e7;background:#eaf6ff;color:#222;font-weight:500;cursor:pointer;font-size:1em;'>追加</button>
+          </div>
+          <div style='text-align:right;margin-top:12px;'><button onclick='document.body.removeChild(this.parentNode.parentNode.parentNode)' style='padding:6px 18px;border-radius:6px;border:none;background:#e0e6ef;color:#333;cursor:pointer;'>閉じる</button></div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      window.addEvent = function(key) {
+        const input = document.getElementById('event-input');
+        const text = input.value.trim();
+        if (!text) return;
+        if (!events[key]) events[key] = [];
+        events[key].push(text);
+        localStorage.setItem('phantom_events', JSON.stringify(events));
+        document.body.removeChild(modal);
+        generateCalendar();
+      };
+      window.deleteEvent = function(key, idx) {
+        events[key].splice(idx,1);
+        if (events[key].length === 0) delete events[key];
+        localStorage.setItem('phantom_events', JSON.stringify(events));
+        document.body.removeChild(modal);
+        generateCalendar();
+      };
+    }
+
+    // Todoリスト（削除機能付き）
+    let todos = JSON.parse(localStorage.getItem('phantom_todos') || '[]');
+    function renderTodos() {
+      const list = document.getElementById('todo-list');
+      list.innerHTML = '';
+      todos.forEach((todo, idx) => {
+        list.innerHTML += `<div class='todo-item'><input type='checkbox' ${todo.done ? 'checked' : ''} onchange='toggleTodo(${idx})'>${todo.text}<button onclick='deleteTodo(${idx})' style='margin-left:8px;padding:2px 8px;font-size:0.9em;border-radius:5px;border:none;background:#eaf6ff;color:#222;cursor:pointer;'>削除</button></div>`;
+      });
+    }
+    function addTodo() {
+      const input = document.getElementById('todo-input');
+      const text = input.value.trim();
+      if (!text) return;
+      todos.push({ text, done: false });
+      localStorage.setItem('phantom_todos', JSON.stringify(todos));
+      input.value = '';
+      renderTodos();
+    }
+    function toggleTodo(idx) {
+      todos[idx].done = !todos[idx].done;
+      localStorage.setItem('phantom_todos', JSON.stringify(todos));
+      renderTodos();
+    }
+    function deleteTodo(idx) {
+      todos.splice(idx,1);
+      localStorage.setItem('phantom_todos', JSON.stringify(todos));
+      renderTodos();
+    }
+    renderTodos();
+  </script>
+</body>
+</html>

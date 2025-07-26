@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>東京・今日の空</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    body {
+      font-family: 'Yu Gothic', 'Segoe UI', sans-serif;
+    }
+</style>
+</head>
+<body class="bg-white flex items-center justify-center min-h-screen">
+  <div class="w-full max-w-lg mx-auto flex flex-col items-center">
+    <svg class="w-32 h-32 block mx-auto mb-3" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="60" cy="60" r="32" fill="#ffb800" stroke="#ffb800" stroke-width="4"/>
+      <g stroke="#ffb800" stroke-width="6" stroke-linecap="round">
+        <line x1="60" y1="10" x2="60" y2="32"/>
+        <line x1="60" y1="88" x2="60" y2="110"/>
+        <line x1="10" y1="60" x2="32" y2="60"/>
+        <line x1="88" y1="60" x2="110" y2="60"/>
+        <line x1="25" y1="25" x2="40" y2="40"/>
+        <line x1="80" y1="80" x2="95" y2="95"/>
+        <line x1="25" y1="95" x2="40" y2="80"/>
+        <line x1="80" y1="40" x2="95" y2="25"/>
+      </g>
+    </svg>
+    <div class="text-5xl font-bold text-gray-800 mb-2" id="temp">--℃</div>
+    <hr class="border-t-4 border-gray-400 w-full my-4">
+    <div class="w-full mt-6 border-4 border-gray-400 rounded-lg bg-white overflow-hidden">
+      <div class="text-2xl font-bold text-gray-700 bg-gray-100 p-4 border-b-4 border-gray-400 text-left" id="main-desc">--</div>
+      <div class="text-lg text-gray-600 p-4 bg-white text-left" id="desc">詳細情報を取得中...</div>
+    </div>
+  </div>
+  <script>
+    async function updateWeather() {
+      const lat = 35.68;
+      const lon = 139.76;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const weather = data.current_weather;
+      // 温度
+      document.getElementById('temp').textContent = `${weather.temperature}℃`;
+      // メイン天気
+      let main = '---';
+      let icon = '☀️';
+      // 天気コードで日本語ラベル
+      const code = weather.weathercode;
+      if (code === 0) { main = '快晴'; icon = '☀️'; }
+      else if (code === 1) { main = '晴れ'; icon = '☀️'; }
+      else if (code === 2) { main = '薄曇り'; icon = '🌤️'; }
+      else if (code === 3) { main = '曇り'; icon = '☁️'; }
+      else if (code >= 51 && code <= 67) { main = '小雨'; icon = '🌦️'; }
+      else if (code >= 80 && code <= 82) { main = '雷雨'; icon = '⛈️'; }
+      else { main = '天気不明'; icon = '❓'; }
+      document.getElementById('main-desc').textContent = `${main}`;
+      // 詳細
+      const desc = `風速 ${weather.windspeed} km/h、気圧 ${weather.pressure} hPa`;
+      document.getElementById('desc').textContent = `詳細：${desc}（天気コード ${weather.weathercode}）`;
+    }
+    updateWeather();
+  </script>
+</body>
+</html>
